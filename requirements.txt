@@ -1,0 +1,5 @@
+pandas
+bio
+openai
+more-itertools
+python-dotenv
