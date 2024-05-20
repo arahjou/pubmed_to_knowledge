@@ -10,15 +10,17 @@ from itertools import combinations
 load_dotenv()
 
 # Set your email and API key for Entrez
-Entrez.email = api_key = os.getenv('my_email')  # Replace with your email
-Entrez.api_key = api_key = os.getenv('my_api_Key')  # Replace with your API key (optional)
+Entrez.email = os.getenv('my_email')  # Replace with your email
+Entrez.api_key = os.getenv('my_api_Key')  # Replace with your API key (optional)
 
+# Function to search PubMed articles based on a query, mindate, and maxdate
 def search_pubmed(query, mindate, maxdate):
     handle = Entrez.esearch(db='pubmed', sort='pub date', retmax='20', retmode='xml', term=query, mindate=mindate, maxdate=maxdate)
     results = Entrez.read(handle)
     handle.close()
     return results['IdList']
 
+# Function to fetch details of PubMed articles based on a list of IDs
 def fetch_details(id_list):
     if not id_list:
         return []
@@ -28,6 +30,7 @@ def fetch_details(id_list):
     handle.close()
     return results
 
+# Function to initialize the SQLite database and create the 'articles' table if it doesn't exist
 def initialize_database(db_path):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -47,6 +50,7 @@ def initialize_database(db_path):
     conn.commit()
     conn.close()
 
+# Function to parse a PubMed article and extract relevant fields
 def parse_article(article):
     article_data = article['MedlineCitation']['Article']
     
@@ -74,7 +78,7 @@ def parse_article(article):
 
     return title, abstract_text, authors, journal, year, keywords_text
 
-
+# Function to store an article's information into the SQLite database
 def store_article(db_path, gene, title, abstract, authors, journal, year, keywords):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -83,6 +87,7 @@ def store_article(db_path, gene, title, abstract, authors, journal, year, keywor
     conn.commit()
     conn.close()
 
+# Function to retrieve an abstract from the database by article ID
 def get_abstract_by_id(db_path, article_id):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -92,6 +97,7 @@ def get_abstract_by_id(db_path, article_id):
     conn.close()
     return result[0] if result else None
 
+# Function to summarize an abstract using OpenAI's API
 def summarize_abstract(abstract):
     client = OpenAI(base_url="http://localhost:5001/v1", api_key="NULL")
     completion = client.chat.completions.create(
@@ -104,6 +110,7 @@ def summarize_abstract(abstract):
     )
     return completion.choices[0].message.content if completion else ""
 
+# Function to store the summary of an abstract into the database
 def store_summary(db_path, article_id, summary):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -120,7 +127,7 @@ def store_summary(db_path, article_id, summary):
     conn.commit()
     conn.close()
 
-
+# Function to process a list of genes, search for relevant articles, and store them in the database
 def process_genes(genes, mindate, maxdate, db_path):
     initialize_database(db_path)
     for gene in genes:
@@ -130,9 +137,7 @@ def process_genes(genes, mindate, maxdate, db_path):
             title, abstract, authors, journal, year, keywords = parse_article(paper)
             store_article(db_path, gene, title, abstract, authors, journal, year, keywords)
 
-
-# Previous functions definitions here (unchanged)
-
+# Function to generate all 2-element pairs from a list
 def generate_pairs(my_list):
     # Remove duplicates from the list by converting it to a set
     my_list = list(set(my_list))
@@ -142,6 +147,7 @@ def generate_pairs(my_list):
     formatted_pairs = [f'{pair[0]} AND {pair[1]}' for pair in pairs]
     return formatted_pairs
 
+# Main function to orchestrate the process
 def main():
     genes = ['53BP1', 'RIF1', 'BRCA1']
     pairs_list = generate_pairs(genes)
