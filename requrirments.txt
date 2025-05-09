@@ -1,4 +1,0 @@
-pandas
-bio
-sqlite3
-openai
